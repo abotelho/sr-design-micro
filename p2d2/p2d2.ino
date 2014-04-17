@@ -9,7 +9,7 @@
  * This sketch is run on the Arduino Duemilanove inside the P2D2 diagnostic 
  * device. It controls the device's heating, lighting, fluid actuation, and 
  * bluetooth communication with a smartphone. 
- */
+ ******************************************************************************/
 
 
 #include "bluetooth.h"
@@ -56,7 +56,7 @@ void loop(){
   {
     // Send any characters the bluetooth prints to the serial monitor
     //Serial.print((char)bluetooth.read());  
-     
+
     if(Serial.available())  // If stuff was typed in the serial monitor
     {
       // Send any characters the Serial monitor prints to the bluetooth
@@ -68,47 +68,72 @@ void loop(){
 
 // Processes status requests received over bluetooth
 void status_requests(int cmd){
-  if (cmd == LED_STATE){
-    Serial.print("//led state request");
-  }
-  else if(cmd == HEATING_STATE){
+  switch(cmd){
+  case LED_STATE: 
+    {
+      Tag ledTag;
+      if(digitalRead(led) == HIGH){
+        ledTag.setValues(LED_STATE, LED_ON);
+      } 
+      else {
+        ledTag.setValues(LED_STATE, LED_OFF);
+      }
+      Tag tagArray[] = {
+        ledTag                                    };
+      writeToBT(tagArray);
+      Serial.print("//led state request");
+      break;
+    }
+  case HEATING_STATE: 
     Serial.print(" //heating state request");
-  }
-  else if (cmd == FLUID_STATE){
+    break;
+  case FLUID_STATE:
     Serial.print("//fluid acutation state request");
-  }
-  else if (cmd == TEMP_DATA){
+    break;
+  case TEMP_DATA:
     Serial.print("//temp data request");
-  }
-  else if (cmd == FULL_STATUS){
+    break;
+  case FULL_STATUS:
     Serial.print("//full status (all state values and data)");
-  }
-  else{
+    break;
+  default:
     Serial.print("invalid input received");
   }
 } 
 
 // Processes heating commands received over bluetooth
 void heating_commands(int cmd){
-  if (cmd == HEAT_TEMP_1){
-    //Start/switch heating-- temp 1
-    Serial.print("Start/switch heating-- temp 1\r\n");  
-  }
-  else if(cmd == HEAT_TEMP_2){
-    //Start/switch heating-- temp 2
-    Serial.print("Start/switch heating-- temp 2\r\n");
-  }
-  else if (cmd == HEAT_TEMP_3){
-    //Start/switch heating-- temp 3
-    Serial.print("Start/switch heating-- temp 3\r\n");
-  }
-  else if (cmd == HEAT_TEMP_4){
-    //Start/switch heating-- temp 4
-    Serial.print("Start/switch heating-- temp 4\r\n");
-  }
-  else if (cmd == STOP_HEATING){
-    //Stop heating
-    Serial.print("Stop heating \r\n");
+  switch(cmd){
+  case HEAT_TEMP_1:
+    {
+      //Start/switch heating-- temp 1
+      Serial.print("Start/switch heating-- temp 1\r\n");
+      break;  
+    }
+  case HEAT_TEMP_2:
+    {
+      //Start/switch heating-- temp 2
+      Serial.print("Start/switch heating-- temp 2\r\n");
+      break;  
+    }
+  case HEAT_TEMP_3:
+    {
+      //Start/switch heating-- temp 3
+      Serial.print("Start/switch heating-- temp 3\r\n");
+      break;  
+    }
+  case HEAT_TEMP_4:
+    {
+      //Start/switch heating-- temp 4
+      Serial.print("Start/switch heating-- temp 4\r\n");
+      break;  
+    }
+  case STOP_HEATING:
+    {
+      //Stop heating
+      Serial.print("Stop heating \r\n");
+      break;  
+    }
   }
 }
 
@@ -144,21 +169,31 @@ void processPacket(){
       //Serial.print(length);
       for( int i = 1; i <= length; i++){
         cmd = bluetooth.read();
-        if (cmd == STATUS_REQUEST){
-          srcmd = bluetooth.read();
-          status_requests(srcmd);
-        }
-        else if (cmd == HEATING_STATE){
-          heatingcmd = bluetooth.read();
-          heating_commands(heatingcmd);
-        }
-        else if (cmd == LED_STATE){
-          ledcmd = bluetooth.read();
-          led_command(ledcmd);
-        }
-        else if (cmd == FLUID_STATE){
-          fluidscmd = bluetooth.read();
-          fluids_command(fluidscmd);
+        switch(cmd){
+        case STATUS_REQUEST:
+          {
+            srcmd = bluetooth.read();
+            status_requests(srcmd);
+            break;
+          }
+        case HEATING_STATE:
+          {
+            heatingcmd = bluetooth.read();
+            heating_commands(heatingcmd);
+            break;
+          }
+        case LED_STATE:
+          {
+            ledcmd = bluetooth.read();
+            led_command(ledcmd);
+            break;
+          }
+        case FLUID_STATE:
+          {
+            fluidscmd = bluetooth.read();
+            fluids_command(fluidscmd);
+            break;
+          }
         }
       }
 
@@ -186,3 +221,4 @@ void writeToBT(Tag tagArray[]){
     }
   }
 }
+
