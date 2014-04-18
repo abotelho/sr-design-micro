@@ -71,6 +71,7 @@ double prev_temp = 0;
 double temp = 0;
 bool run = true;
 int k;
+byte fluid_state= FLUIDS_NOT_ACTUATED;
 
 int pumpPower = 0;
 
@@ -90,8 +91,8 @@ void setup()
   delay(250); // delay 500 ms
 
   // Wait for serial prompt
-  while(!Serial.available()){
-  } 
+  //while(!Serial.available()){
+  //} 
 
   // Set up heat PWM for pin 9, Set for 8 bit Fast PWM (approx 1000Hz)
   TCCR1B = TCCR1B | 0b00001011;
@@ -219,8 +220,7 @@ void status_requests(int cmd){
       }
       Serial.print((int) ledTag.getType());
       Serial.print("\r\n");
-      Tag tagArray[1];
-      tagArray[0] = ledTag;      
+      Tag tagArray[] = {ledTag};      
       writeToBT(tagArray, 0x01);
       Serial.print("//led state request\r\n");
       break;
@@ -228,9 +228,14 @@ void status_requests(int cmd){
   case HEATING_STATE: 
     Serial.print(" //heating state request");
     break;
-  case FLUID_STATE:
+  case FLUID_STATE:{
+    Tag fluidsTag;
+    fluidsTag.setValues(FLUID_STATE, fluid_state);
+    Tag tagArray[] = {fluidsTag};
+    writeToBT(tagArray, 0x01);
     Serial.print("//fluid acutation state request");
     break;
+  }
   case TEMP_DATA:
     Serial.print("//temp data request");
     break;
@@ -353,7 +358,7 @@ void processPacket(){
 
 void writeToBT(Tag tagArray[], byte size){
   bluetooth.write(HEADER_OUT_1);
-  bluetooth.write(HEADER_OUT_1);
+  bluetooth.write(HEADER_OUT_2);
   bluetooth.write(size);
 
   for(int i = 0; i< size; i++){
