@@ -138,7 +138,7 @@ void loop(){
     }
     current_error = FINAL_TEMP-temp;
 
-    if(k==0 && temp<FINAL_temp-boostBuffer){
+    if(k==0 && temp<FINAL_TEMP-boostBuffer){
       k = 1; // this allows a one time initial power boost
       while(readTempC()<(FINAL_TEMP-boostBuffer) && readTempC()>0){
         heatPower = heatMax;
@@ -216,7 +216,7 @@ void status_requests(int cmd){
         ledTag.setValues(LED_STATE, LED_OFF);
       }
       Tag tagArray[] = {
-        ledTag                                                                  };
+        ledTag                                                                        };
       writeToBT(tagArray);
       Serial.print("//led state request");
       break;
@@ -357,8 +357,9 @@ void writeToBT(Tag tagArray[]){
       bluetooth.write(tagArray[i].getData2());
     }
   }
+}
 
-  void SerialPrintData(){
+void SerialPrintData(){
     if(heatTest){
       Serial.print("C = "); 
       Serial.println(readTempC());
@@ -375,13 +376,13 @@ void writeToBT(Tag tagArray[]){
       Serial.print("Heat Power = ");
       Serial.println(OCR1A);
     }
-    
+
     if(pumpTest){
       Serial.print("pumpPower = "); 
       Serial.println(OCR1B);
     }
   }
-}
+
 
 
 
