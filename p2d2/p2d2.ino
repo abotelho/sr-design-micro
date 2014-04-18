@@ -25,8 +25,8 @@
  * Variable initializations
  ******************************************************************************/
 // Bluetooth pins
-const int bluetoothTx = 2;  // TX-O pin of bluetooth mate, Arduino D2
-const int bluetoothRx = 3;  // RX-I pin of bluetooth mate, Arduino D3
+const int bluetoothTx = 11;  // TX-O pin of bluetooth mate, Arduino D2
+const int bluetoothRx = 12;  // RX-I pin of bluetooth mate, Arduino D3
 
 
 // Other Bluetooth Variables
@@ -89,8 +89,9 @@ void setup()
   // wait for MAX chip to stabilize
   delay(250); // delay 500 ms
 
+  // Wait for serial prompt
   while(!Serial.available()){
-  } // Wait for serial prompt
+  } 
 
   // Set up heat PWM for pin 9, Set for 8 bit Fast PWM (approx 1000Hz)
   TCCR1B = TCCR1B | 0b00001011;
@@ -192,15 +193,16 @@ void loop(){
   // If bluetooth receiverd at least minPacketSize characters
   if(bluetooth.available() >= minPacketSize)  
   {
+    Serial.print("Checking for bluetooth\r\n");
     processPacket();
     // Send any characters the bluetooth prints to the serial monitor
     //Serial.print((char)bluetooth.read());
   }
-  if(Serial.available())  // If stuff was typed in the serial monitor
-  {
-    // Send any characters the Serial monitor prints to the bluetooth
-    bluetooth.print((char)Serial.read());
-  }
+  /*if(Serial.available())  // If stuff was typed in the serial monitor
+   {
+   // Send any characters the Serial monitor prints to the bluetooth
+   bluetooth.print((char)Serial.read());
+   }*/
 }
 
 // Processes status requests received over bluetooth
@@ -215,10 +217,12 @@ void status_requests(int cmd){
       else {
         ledTag.setValues(LED_STATE, LED_OFF);
       }
-      Tag tagArray[] = {
-        ledTag                                                                        };
-      writeToBT(tagArray);
-      Serial.print("//led state request");
+      Serial.print((int) ledTag.getType());
+      Serial.print("\r\n");
+      Tag tagArray[1];
+      tagArray[0] = ledTag;      
+      writeToBT(tagArray, 0x01);
+      Serial.print("//led state request\r\n");
       break;
     }
   case HEATING_STATE: 
@@ -278,9 +282,11 @@ void heating_commands(int cmd){
 void led_command(int cmd){
   if (cmd == LED_ON){
     Serial.print("//Leds on\r\n");
+    digitalWrite(led,HIGH);
   }
   else if(cmd == LED_OFF){
     Serial.print("//Leds off\r\n");
+    digitalWrite(led,LOW);
   }
 }  
 
@@ -298,8 +304,9 @@ void fluids_command(int cmd){
 
 // Processes packets received over bluetooth
 void processPacket(){
+  Serial.print("Debug 2\r\n");
   if(bluetooth.read() == HEADER_IN_1){
-    //Serial.print("first byte received\r\n");
+    Serial.print("first byte received\r\n");
     if(bluetooth.read() == HEADER_IN_2){
       //Serial.print("second byte received\r\n");
       length = bluetooth.read();
@@ -344,12 +351,12 @@ void processPacket(){
   }
 }
 
-void writeToBT(Tag tagArray[]){
-  byte tagArraySize = sizeof(tagArray)/sizeof(Tag);
+void writeToBT(Tag tagArray[], byte size){
   bluetooth.write(HEADER_OUT_1);
   bluetooth.write(HEADER_OUT_1);
-  bluetooth.write(tagArraySize);
-  for(int i = 0; i< tagArraySize; i++){
+  bluetooth.write(size);
+
+  for(int i = 0; i< size; i++){
     byte type = tagArray[i].getType();
     bluetooth.write(type);
     bluetooth.write(tagArray[i].getData1());
@@ -360,28 +367,35 @@ void writeToBT(Tag tagArray[]){
 }
 
 void SerialPrintData(){
-    if(heatTest){
-      Serial.print("C = "); 
-      Serial.println(readTempC());
-      Serial.print("total_error = ");
-      Serial.println(total_error);
-      Serial.print("outputkp = ");
-      Serial.println(kp*current_error);
-      Serial.print("outputki = ");
-      Serial.println(ki*(total_error));
-      Serial.print("outputkd = ");
-      Serial.println(-kd*(diff+prev_diff)/20);
-      Serial.print("Output = ");
-      Serial.println(output);
-      Serial.print("Heat Power = ");
-      Serial.println(OCR1A);
-    }
-
-    if(pumpTest){
-      Serial.print("pumpPower = "); 
-      Serial.println(OCR1B);
-    }
+  if(heatTest){
+    Serial.print("C = "); 
+    Serial.println(readTempC());
+    Serial.print("total_error = ");
+    Serial.println(total_error);
+    Serial.print("outputkp = ");
+    Serial.println(kp*current_error);
+    Serial.print("outputki = ");
+    Serial.println(ki*(total_error));
+    Serial.print("outputkd = ");
+    Serial.println(-kd*(diff+prev_diff)/20);
+    Serial.print("Output = ");
+    Serial.println(output);
+    Serial.print("Heat Power = ");
+    Serial.println(OCR1A);
   }
+
+  if(pumpTest){
+    Serial.print("pumpPower = "); 
+    Serial.println(OCR1B);
+  }
+}
+
+
+
+
+
+
+
 
 
 
