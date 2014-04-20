@@ -25,8 +25,8 @@
  * Variable initializations
  ******************************************************************************/
 // Bluetooth pins
-const int bluetoothTx = 11;  // TX-O pin of bluetooth mate, Arduino D2
-const int bluetoothRx = 12;  // RX-I pin of bluetooth mate, Arduino D3
+const int bluetoothTx = 6 ;  // TX-O pin of bluetooth mate, Arduino D2
+const int bluetoothRx = 5;  // RX-I pin of bluetooth mate, Arduino D3
 
 
 // Other Bluetooth Variables
@@ -40,16 +40,17 @@ int minPacketSize = 5;
 SoftwareSerial bluetooth(bluetoothTx, bluetoothRx); // connection to Blue SmiRF
 
 // Heating/pump/lighting variables 
-boolean heatTest = true;
+boolean heatingOn = false;
+boolean stable = false;
 boolean pumpTest = true;
 
-const int thermoDO = 3;
-const int thermoCS = 4;
-const int thermoCLK = 5;
-const int heatPin = 9;
-const int pumpPin = 10;
-const int potPin = A5;
-const int led = 13;
+const int thermoDO = 2;
+const int thermoCS = 2;
+const int thermoCLK = 4;
+const int heatPin = 11;
+const int pumpPin = 9;
+//const int potPin = A5;
+const int led = 8;
 
 int heatMax = 100;
 int heatPower = 0;
@@ -103,14 +104,6 @@ void setup()
 
   // Bluetooth setup
   Serial.begin(9600);  // Begin the serial monitor at 9600bps
-
-  bluetooth.begin(115200);  // The Bluetooth Mate defaults to 115200bps
-  bluetooth.print("$");  // Print three times individually
-  bluetooth.print("$");
-  bluetooth.print("$");  // Enter command mode
-  delay(100);  // Short delay, wait for the Mate to send back CMD
-  bluetooth.println("U,9600,N");  // Change baudrate to 9600, no parity
-  // (115200 can be too fast at times for NewSoftSerial to relay data reliably)
   bluetooth.begin(9600);  // Start bluetooth serial at 9600
 }
 
@@ -129,7 +122,7 @@ double readTempC(){
 // Runs continuously after setup
 void loop(){
   //Heater Code
-  if(heatTest){
+  if(heatingOn){
     // Get temperature readings
     double temp = readTempC();
     if(current_error>0){
@@ -178,32 +171,25 @@ void loop(){
   // Pump Code
   if(pumpTest){
 
-    potValue = analogRead(potPin);
-    potValue = map(potValue,0,1023,0,255);
-    pumpPower = potValue;
+    //potValue = analogRead(potPin);
+    //potValue = map(potValue,0,1023,0,255);
+    //pumpPower = potValue;
 
   }
 
   dataPrintCounter++;
   if(dataPrintCounter >=10){
-    SerialPrintData();
+    //SerialPrintData();
     dataPrintCounter = 0;
   }
-  //Serial.println(dataPrintCounter);
+  Serial.println(dataPrintCounter);
 
   // If bluetooth receiverd at least minPacketSize characters
   if(bluetooth.available() >= minPacketSize)  
   {
-    Serial.print("Checking for bluetooth\r\n");
+    // Serial.print("Checking for bluetooth\r\n");
     processPacket();
-    // Send any characters the bluetooth prints to the serial monitor
-    //Serial.print((char)bluetooth.read());
   }
-  /*if(Serial.available())  // If stuff was typed in the serial monitor
-   {
-   // Send any characters the Serial monitor prints to the bluetooth
-   bluetooth.print((char)Serial.read());
-   }*/
 }
 
 // Processes status requests received over bluetooth
@@ -212,73 +198,98 @@ void status_requests(int cmd){
   case LED_STATE: 
     {
       Tag ledTag;
-      if(digitalRead(led) == HIGH){
+      if(bitRead(PORTB, 0) == HIGH){
         ledTag.setValues(LED_STATE, LED_ON);
       } 
       else {
         ledTag.setValues(LED_STATE, LED_OFF);
       }
-      Serial.print((int) ledTag.getType());
-      Serial.print("\r\n");
-      Tag tagArray[] = {ledTag};      
+      //Serial.println((int) ledTag.getType());
+      Tag tagArray[] = {
+        ledTag      };      
       writeToBT(tagArray, 0x01);
-      Serial.print("//led state request\r\n");
+      //Serial.println("//led state request");
       break;
     }
   case HEATING_STATE: 
-    Serial.print(" //heating state request");
-    break;
-  case FLUID_STATE:{
-    Tag fluidsTag;
-    fluidsTag.setValues(FLUID_STATE, fluid_state);
-    Tag tagArray[] = {fluidsTag};
-    writeToBT(tagArray, 0x01);
-    Serial.print("//fluid acutation state request");
-    break;
-  }
+    {
+      Tag heatStateTag;
+      if(heatingOn){
+        if(stable){
+          heatStateTag.setValues(HEATING_STATE, HEAT_TEMP_1);
+        }
+        else{
+          heatStateTag.setValues(HEATING_STATE, HEATING_TEMP_1);
+        }
+      } 
+      else {
+        heatStateTag.setValues(HEATING_STATE, STOP_HEATING);
+      }
+      //Serial.println((int) heatStateTag.getType());
+      Tag tagArray[] = {        
+        heatStateTag                                        };      
+      writeToBT(tagArray, 0x01);
+      //Serial.println(" //heating state request");
+      break;
+    }
+  case FLUID_STATE:
+    {
+      Tag fluidsTag;
+      fluidsTag.setValues(FLUID_STATE, fluid_state);
+      Tag tagArray[] = {
+        fluidsTag                                          };
+      writeToBT(tagArray, 0x01);
+      Serial.println("//fluid acutation state request");
+      break;
+    }
   case TEMP_DATA:
-    Serial.print("//temp data request");
+    Serial.println("//temp data request");
     break;
   case FULL_STATUS:
-    Serial.print("//full status (all state values and data)");
+    Serial.println("//full status (all state values and data)");
     break;
   default:
-    Serial.print("invalid input received");
+    Serial.println("invalid input received");
   }
 } 
 
 // Processes heating commands received over bluetooth
 void heating_commands(int cmd){
+  Serial.println("Heating command");
   switch(cmd){
   case HEAT_TEMP_1:
     {
       //Start/switch heating-- temp 1
-      Serial.print("Start/switch heating-- temp 1\r\n");
+      Serial.println("Start/switch heating-- temp 1");
       break;  
     }
   case HEAT_TEMP_2:
     {
       //Start/switch heating-- temp 2
-      Serial.print("Start/switch heating-- temp 2\r\n");
+      Serial.println("Start/switch heating-- temp 2");
       break;  
     }
   case HEAT_TEMP_3:
     {
       //Start/switch heating-- temp 3
-      Serial.print("Start/switch heating-- temp 3\r\n");
+      Serial.println("Start/switch heating-- temp 3");
       break;  
     }
   case HEAT_TEMP_4:
     {
       //Start/switch heating-- temp 4
-      Serial.print("Start/switch heating-- temp 4\r\n");
+      Serial.println("Start/switch heating-- temp 4");
       break;  
     }
   case STOP_HEATING:
     {
       //Stop heating
-      Serial.print("Stop heating \r\n");
+      Serial.println("Stop heating");
       break;  
+    }
+  default:
+    {
+      //Serial.println("default Case"); 
     }
   }
 }
@@ -286,11 +297,11 @@ void heating_commands(int cmd){
 // Processes LED commands received over bluetooth
 void led_command(int cmd){
   if (cmd == LED_ON){
-    Serial.print("//Leds on\r\n");
+    //Serial.print("//Leds on\r\n");
     digitalWrite(led,HIGH);
   }
   else if(cmd == LED_OFF){
-    Serial.print("//Leds off\r\n");
+    //Serial.print("//Leds off\r\n");
     digitalWrite(led,LOW);
   }
 }  
@@ -299,23 +310,23 @@ void led_command(int cmd){
 void fluids_command(int cmd){
   if (cmd == FLUIDS_ACTUATE){
     //Start fluids actuation
-    Serial.print("Start fluids actuation");
+    //Serial.print("Start fluids actuation");
   }
   else if(cmd == FLUIDS_STOP){
     //Stop fluids actuation
-    Serial.print("Stop fluids actuation");
+    //Serial.print("Stop fluids actuation");
   }
 }  
 
 // Processes packets received over bluetooth
 void processPacket(){
-  Serial.print("Debug 2\r\n");
+  //Serial.print("Debug 2\r\n");
   if(bluetooth.read() == HEADER_IN_1){
-    Serial.print("first byte received\r\n");
+    //Serial.print("first byte received\r\n");
     if(bluetooth.read() == HEADER_IN_2){
       //Serial.print("second byte received\r\n");
       length = bluetooth.read();
-      //Serial.print(length);
+      //Serial.println(length);
       for( int i = 1; i <= length; i++){
         cmd = bluetooth.read();
         switch(cmd){
@@ -348,11 +359,11 @@ void processPacket(){
 
     }
     else{
-      bluetooth.flush();
+      //bluetooth.flush();
     }
   }
   else{
-    bluetooth.flush();
+    //bluetooth.flush();
   }
 }
 
@@ -372,7 +383,7 @@ void writeToBT(Tag tagArray[], byte size){
 }
 
 void SerialPrintData(){
-  if(heatTest){
+  if(heatingOn){
     Serial.print("C = "); 
     Serial.println(readTempC());
     Serial.print("total_error = ");
@@ -388,12 +399,23 @@ void SerialPrintData(){
     Serial.print("Heat Power = ");
     Serial.println(OCR1A);
   }
+  else{
+    Serial.print("C = "); 
+    Serial.println(readTempC());
+  }
 
   if(pumpTest){
     Serial.print("pumpPower = "); 
     Serial.println(OCR1B);
   }
 }
+
+
+
+
+
+
+
 
 
 
